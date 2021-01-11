@@ -137,20 +137,41 @@ public class CubicCurveShape extends LineConnectorShape {
         double c2x = 0.0;
         double c2y = 0.0;
 
-        if (angle > 0.707107f || angle < -0.707107f) {
-            // North or south.
-            c1x = fromx + mainDir.x() / 2;
-            c2x = c1x;
-            c1y = fromy;
-            c2y = toy;
-        } 
-        else {
-            // East or west.
-            c1x = fromx;
-            c2x = tox;
-            c1y = fromy + mainDir.y() / 2;
-            c2y = c1y;
-        }
+		//     theEdge.
+
+		if(mainDir.y() > 0.0) {
+			double fromXDelta;
+			double toXDelta;
+			if(Math.abs(mainDir.x()) < 0.2) {
+				fromXDelta = 0.5 * mainDir.x();
+			} else {
+				fromXDelta = 0.5 * Math.copySign(0.2, mainDir.x());
+			}
+
+			if(Math.abs(mainDir.x()) < 0.5) {
+				toXDelta = 0.5 * mainDir.x();
+			} else {
+				toXDelta = 0.5 * Math.copySign(0.5, mainDir.x());
+			}
+			c1x = fromx + fromXDelta;
+			c2x = tox - toXDelta;
+
+			c1y = fromy + mainDir.y() / 2;
+			c2y = toy - mainDir.y() / 2;
+		} else {
+			c1x = fromx + 0.5 * mainDir.x();
+			c2x = tox - 0.5 * mainDir.x();
+
+			c1y = fromy + 1;
+			c2y = toy - 1;
+		}
+/*
+//        Draw control points
+		Graphics2D g = backend.graphics2D();
+
+		g.draw(new Ellipse2D.Double(c1x, c1y, 0.01, 0.01));
+		g.draw(new Ellipse2D.Double(c2x, c2y, 0.01, 0.01));
+*/
 
         theShape.reset();
         theShape.moveTo(fromx, fromy);
