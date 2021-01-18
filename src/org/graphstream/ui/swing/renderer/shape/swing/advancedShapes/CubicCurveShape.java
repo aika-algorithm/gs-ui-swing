@@ -52,16 +52,16 @@ public class CubicCurveShape extends LineConnectorShape {
 
 	@Override
 	public void make(Backend backend, DefaultCamera2D camera) {
-		make(camera, 0, 0, 0, 0);
+		make(backend, camera, 0, 0, 0, 0);
 	}
 
-	private void make(DefaultCamera2D camera, double sox, double soy, double swx, double swy) {
+	private void make(Backend backend, DefaultCamera2D camera, double sox, double soy, double swx, double swy) {
 		if (skel.multi() > 1 || skel.isLoop()) // is a loop or a multi edge
             makeMultiOrLoop(camera, sox, soy, swx, swy);
        else if(skel.isPoly() && skel.size() == 4)
             makeFromPoints(camera, sox, soy, swx, swy); // has points positions
        else 
-    	   makeSingle(camera, sox, soy, swx, swy); // is a single edge.
+    	   makeSingle(backend, camera, sox, soy, swx, swy); // is a single edge.
 	}
 
 	private void makeMultiOrLoop(DefaultCamera2D camera, double sox, double soy, double swx, double swy) {
@@ -110,21 +110,25 @@ public class CubicCurveShape extends LineConnectorShape {
 		double c1y = skel.apply(1).y + soy;
 		double c2x = skel.apply(2).x + sox;
 		double c2y = skel.apply(2).y + soy;
-		
+
 		theShape.reset();
 		theShape.moveTo(fromx, fromy);
-		theShape.curveTo(c1x, c1y, c2x, c2y, tox, toy);	
+		theShape.curveTo(c1x, c1y, c2x, c2y, tox, toy);
 
-		if (sox == 0 && soy == 0) {	// Inform the system this is a curve, not a polyline.
+		if (sox == 0 && soy == 0) {    // Inform the system this is a curve, not a polyline.
 			skel.setCurve(
 					fromx, fromy, 0,
 					c1x, c1y, 0,
 					c2x, c2y, 0,
 					tox, toy, 0);
-		}	
+		}
 	}
 
-	private void makeSingle(DefaultCamera2D camera, double sox, double soy, double swx, double swy) {
+	public Path2D.Double getTheShape() {
+		return theShape;
+	}
+
+	public void makeSingle(Backend backend, DefaultCamera2D camera, double sox, double soy, double swx, double swy) {
 		double fromx = skel.from().x + sox;
 		double fromy = skel.from().y + soy;
 		double tox = skel.to().x + sox;
@@ -162,8 +166,8 @@ public class CubicCurveShape extends LineConnectorShape {
 			c1x = fromx + 0.5 * mainDir.x();
 			c2x = tox - 0.5 * mainDir.x();
 
-			c1y = fromy + 1;
-			c2y = toy - 1;
+			c1y = fromy + 0.2;
+			c2y = toy - 0.2;
 		}
 /*
 //        Draw control points
@@ -193,7 +197,7 @@ public class CubicCurveShape extends LineConnectorShape {
 		if (skel.isCurve())
             makeMultiOrLoop(camera, shadowableLine.theShadowOff.x, shadowableLine.theShadowOff.y, shadowableLine.theShadowWidth, shadowableLine.theShadowWidth);
 		else
-			makeSingle(camera, shadowableLine.theShadowOff.x, shadowableLine.theShadowOff.y, shadowableLine.theShadowWidth, shadowableLine.theShadowWidth);
+			makeSingle(backend, camera, shadowableLine.theShadowOff.x, shadowableLine.theShadowOff.y, shadowableLine.theShadowWidth, shadowableLine.theShadowWidth);
 	}
 
 	@Override
