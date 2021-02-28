@@ -105,9 +105,10 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
 	protected LayerRenderer<Graphics2D> backRenderer = null;
 
 	protected LayerRenderer<Graphics2D> foreRenderer = null;
-	
-	protected Backend backend = null ;
-	
+
+	protected Backend swingBackend = null ;
+	protected Backend uhdBackend = null ;
+
 	protected FPSLogger fpsLogger = null ;
 	
 // Construction
@@ -116,10 +117,12 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
 	public void open(GraphicGraph graph, Container drawingSurface) {
 		if( this.graph == null ) {
 			this.graph   = graph;
-			this.backend = new BackendJ2D();		// choose it according to some setting
+			this.swingBackend = new BackendJ2DDummy();		// choose it according to some setting
+			this.uhdBackend = new BackendJ2D();		// choose it according to some setting
 		  	this.camera  = new DefaultCamera2D(graph);
 		  	graph.getStyleGroups().addListener(this);
-		  	backend.open(drawingSurface);
+			swingBackend.open(drawingSurface);
+			uhdBackend.open(drawingSurface);
 	  	}
 		else {
 	  		throw new RuntimeException("renderer already open, use close() first");
@@ -135,10 +138,12 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
 			}
    
 			removeRenderers();
-			backend.close();
+			swingBackend.close();
+			uhdBackend.close();
 			graph.getStyleGroups().removeListener(this);
 			graph   = null;
-			backend = null;
+			swingBackend = null;
+			uhdBackend = null;
 			camera  = null;
 		}
 	}
@@ -151,7 +156,7 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
 	}
 		  
 	public Container renderingSurface() {
-		return backend.drawingSurface();
+		return uhdBackend.drawingSurface();
 	}
 	
 	/** Get (and assign if needed) a style renderer to the graphic graph. The renderer will be reused then. */
@@ -204,7 +209,7 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
   	}
 
     public void moveElementAtPx(GraphicElement element, double x, double y) {
-  		Point3 p = camera.transformPxToGu(x, y);
+  		Point3 p = camera.transformPxToGuSwing(x, y);
   		element.move(p.x, p.y, element.getZ());
   	}
  
@@ -217,29 +222,34 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
   	        
   		    // Verify this view is not closed, the Swing repaint mechanism may trigger 1 or 2
   		    // calls to this after being closed.
-  		    if(backend == null)
-  		        backend = new BackendJ2D(); // TODO choose it according to some setting ...
-  		    
-  		    backend.prepareNewFrame(g);
-  		    camera.setBackend(backend);
-  		        
+			if(swingBackend == null)
+				swingBackend = new BackendJ2DDummy(); // TODO choose it according to some setting ...
+			if(uhdBackend == null)
+				uhdBackend = new BackendJ2D(); // TODO choose it according to some setting ...
+
+			swingBackend.prepareNewFrame(g);
+			camera.setSwingBackend(swingBackend);
+
+			uhdBackend.prepareNewFrame(g);
+			camera.setUhdBackend(uhdBackend);
+
   			StyleGroupSet sgs = graph.getStyleGroups();
   			
   			setupGraphics();
   			graph.computeBounds();
   			camera.setBounds(graph);
   			camera.setViewport(x, y, width, height);
-  			getStyleRenderer(graph).render(backend, camera, width, height);
+  			getStyleRenderer(graph).render(uhdBackend, camera, width, height);
   			renderBackLayer();
 
   			camera.pushView(graph);
-  			sgs.shadows().forEach( s -> getStyleRenderer(s).renderShadow(backend, camera));
+  			sgs.shadows().forEach( s -> getStyleRenderer(s).renderShadow(uhdBackend, camera));
   			
   			
   			sgs.getZIndex().forEach( groups -> {
   				groups.forEach( group -> {
   					if(group.getType() != Selector.Type.GRAPH) {
-  						getStyleRenderer(group).render(backend, camera);
+  						getStyleRenderer(group).render(uhdBackend, camera);
 		  	  		}
   				});
   			});
@@ -249,7 +259,7 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
   
   			if( selection.getRenderer() == null ) 
   				selection.setRenderer(new SelectionRenderer( selection, graph ));
-  			selection.getRenderer().render(backend, camera, width, height );
+  			selection.getRenderer().render(uhdBackend, camera, width, height );
   			
   	    	endFrame();
   	    }
@@ -283,7 +293,7 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
 	protected void renderLayer(LayerRenderer<Graphics2D> renderer) {
 		GraphMetrics metrics = camera.getMetrics();
 		
-		renderer.render(backend.graphics2D(), graph, metrics.ratioPx2Gu,
+		renderer.render(uhdBackend.graphics2D(), graph, metrics.ratioPx2Gu,
 			(int)metrics.viewport[2],
 			(int)metrics.viewport[3],
 			metrics.loVisible.x,
@@ -294,8 +304,8 @@ public class SwingGraphRenderer implements GraphRenderer<Container, Graphics2D>,
     
 	/** Setup the graphic pipeline before drawing. */
 	protected void setupGraphics() {
-       backend.setAntialias(graph.hasAttribute("ui.antialias"));
-       backend.setQuality(graph.hasAttribute("ui.quality"));
+		uhdBackend.setAntialias(graph.hasAttribute("ui.antialias"));
+		uhdBackend.setQuality(graph.hasAttribute("ui.quality"));
 	}
 	
 	public void screenshot(String filename, int width, int height) {

@@ -1,0 +1,434 @@
+/*
+ * This file is part of GraphStream <http://graphstream-project.org>.
+ * 
+ * GraphStream is a library whose purpose is to handle static or dynamic
+ * graph, create them from scratch, file or any source and display them.
+ * 
+ * This program is free software distributed under the terms of two licenses, the
+ * CeCILL-C license that fits European law, and the GNU Lesser General Public
+ * License. You can  use, modify and/ or redistribute the software under the terms
+ * of the CeCILL-C license as circulated by CEA, CNRS and INRIA at the following
+ * URL <http://www.cecill.info> or under the terms of the GNU LGPL as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ * PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * The fact that you are presently reading this means that you have had
+ * knowledge of the CeCILL-C and LGPL licenses and that you accept their terms.
+ */
+
+ /**
+  * @author Antoine Dutot <antoine.dutot@graphstream-project.org>
+  * @author Guilhelm Savin <guilhelm.savin@graphstream-project.org>
+  * @author Hicham Brahimi <hicham.brahimi@graphstream-project.org>
+  */
+  
+package org.graphstream.ui.swing;
+
+import org.graphstream.ui.geom.Point3;
+import org.graphstream.ui.graphicGraph.StyleGroup;
+import org.graphstream.ui.swing.renderer.GraphBackgroundRenderer;
+import org.graphstream.ui.swing.renderer.shape.Shape;
+import org.graphstream.ui.swing.renderer.shape.swing.advancedShapes.*;
+import org.graphstream.ui.swing.renderer.shape.swing.arrowShapes.ArrowOnEdge;
+import org.graphstream.ui.swing.renderer.shape.swing.arrowShapes.CircleOnEdge;
+import org.graphstream.ui.swing.renderer.shape.swing.arrowShapes.DiamondOnEdge;
+import org.graphstream.ui.swing.renderer.shape.swing.arrowShapes.ImageOnEdge;
+import org.graphstream.ui.swing.renderer.shape.swing.baseShapes.LineShape;
+import org.graphstream.ui.swing.renderer.shape.swing.baseShapes.PolylineEdgeShape;
+import org.graphstream.ui.swing.renderer.shape.swing.basicShapes.*;
+import org.graphstream.ui.swing.renderer.shape.swing.spriteShapes.OrientableSquareShape;
+import org.graphstream.ui.swing.renderer.shape.swing.spriteShapes.SpriteArrowShape;
+import org.graphstream.ui.swing.renderer.shape.swing.spriteShapes.SpriteFlowShape;
+
+import java.awt.*;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Point2D;
+import java.util.Stack;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class BackendJ2DDummy implements Backend {
+
+	private Container surface ;
+	private Stack<AffineTransform> matrixStack ;
+	private AffineTransform Tx ;
+	private AffineTransform xT ;
+	private Point2D dummyPoint = new Point2D.Double();
+
+	public BackendJ2DDummy() {
+		surface = null ;
+		matrixStack = new Stack<>() ;
+		Tx = null;
+		xT = null;
+	}
+
+	@Override
+	public void open(Container drawingSurface) {
+		surface = drawingSurface ;
+	}
+
+	@Override
+	public void close() {
+		surface = null ;
+	}
+
+	@Override
+	public void prepareNewFrame(Graphics2D g) {
+		Tx = new AffineTransform(); //g2.getTransform();
+		matrixStack.clear();
+	}
+
+	@Override
+	public Graphics2D graphics2D() {
+		return null;
+	}
+
+	@Override
+	public Point3 transform(double x, double y, double z) {
+		dummyPoint.setLocation(x, y);
+		Tx.transform(dummyPoint, dummyPoint);
+		return new Point3(dummyPoint.getX(), dummyPoint.getY(), 0);
+	}
+
+	@Override
+	public Point3 inverseTransform(double x, double y, double z) {
+		dummyPoint.setLocation(x, y);
+        xT.transform(dummyPoint, dummyPoint);
+        return new Point3(dummyPoint.getX(), dummyPoint.getY(), 0);
+	}
+
+	@Override
+	public Point3 transform(Point3 p) {
+		dummyPoint.setLocation(p.x, p.y);
+		Tx.transform(dummyPoint, dummyPoint);
+		p.set(dummyPoint.getX(), dummyPoint.getY(), 0);
+		return p;
+	}
+
+	@Override
+	public Point3 inverseTransform(Point3 p) {
+		dummyPoint.setLocation(p.x, p.y);
+		xT.transform(dummyPoint, dummyPoint);
+		p.set(dummyPoint.getX(), dummyPoint.getY(), 0);
+		return p;
+	}
+
+	@Override
+	public void pushTransform() {
+		matrixStack.push(new AffineTransform());
+	}
+
+	@Override
+	public void beginTransform() {}
+
+	@Override
+	public void setIdentity() {
+		Tx.setToIdentity();
+	}
+
+	@Override
+	public void translate(double tx, double ty, double tz) {
+	//	g2.translate(tx, ty);
+		Tx.translate(tx, ty);
+	}
+
+	@Override
+	public void rotate(double angle, double ax, double ay, double az) {
+	//	g2.rotate(angle);
+		Tx.rotate(angle, ax, ay, az);
+	}
+
+	@Override
+	public void scale(double sx, double sy, double sz) {
+	//	g2.scale(sx, sy);
+		Tx.scale(sx, sy);
+	}
+
+	@Override
+	public void endTransform() {
+//		Tx = g2.getTransform();
+		computeInverse();
+	}
+
+	private void computeInverse() {
+		try {
+			xT = new AffineTransform(Tx);
+			xT.invert();
+		}
+		catch (NoninvertibleTransformException e) {
+			 Logger.getLogger(this.getClass().getSimpleName()).log(Level.WARNING, "Cannot inverse matrix.", e);
+		}
+	}
+
+	@Override
+	public void popTransform() {
+		assert(!matrixStack.isEmpty());
+	//	g2.setTransform(matrixStack.pop());
+	//	Tx = matrixStack.pop();
+	}
+
+	@Override
+	public void setAntialias(Boolean on) {
+
+	}
+
+	@Override
+	public void setQuality(Boolean on) {
+
+	}
+
+	@Override
+	public Shape chooseNodeShape(Shape oldShape, StyleGroup group) {
+		switch (group.getShape()) {
+			case CIRCLE:
+				if(oldShape instanceof CircleShape)	
+					return oldShape ;
+				else 								
+					return new CircleShape();
+			case BOX:
+				if(oldShape instanceof SquareShape)
+					return oldShape ;
+				else
+					return new SquareShape();
+			case ROUNDED_BOX:
+				if(oldShape instanceof RoundedSquareShape)	
+					return oldShape ;
+				else
+					return new RoundedSquareShape();
+			case DIAMOND:
+				if(oldShape instanceof DiamondShape)	
+					return oldShape ;
+				else
+					return new DiamondShape();
+			case TRIANGLE:
+				if(oldShape instanceof TriangleShape)
+					return oldShape ;
+				else
+					return new TriangleShape();
+			case CROSS:
+				if(oldShape instanceof CrossShape)
+					return oldShape ;
+				else
+					return new CrossShape();
+			case FREEPLANE:
+				if(oldShape instanceof FreePlaneNodeShape)	
+					return oldShape ;
+				else
+					return new FreePlaneNodeShape();
+			case PIE_CHART:
+				if(oldShape instanceof PieChartShape)
+					return oldShape ;
+				else
+					return new PieChartShape();
+			case POLYGON:
+				if(oldShape instanceof PolygonShape)	
+					return oldShape ;
+				else
+					return new PolygonShape();
+			//------
+			case TEXT_BOX:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-box shape not yet implemented **");  
+				return new SquareShape();
+			case TEXT_PARAGRAPH:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-para shape not yet implemented **");  
+				return new SquareShape();
+			case TEXT_CIRCLE:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-circle shape not yet implemented **");  
+				return new CircleShape();
+			case TEXT_DIAMOND:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-diamond shape not yet implemented **");  
+				return new CircleShape();
+			case ARROW:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY arrow shape not yet implemented **");  
+				return new CircleShape();
+			case IMAGES:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY images shape not yet implemented **");  
+				return new SquareShape();
+			//----
+			case JCOMPONENT:
+				throw new RuntimeException("Jcomponent should have its own renderer");
+			default:
+				throw new RuntimeException(group.getShape().toString()+" shape cannot be set for nodes");
+		}
+	}
+
+	@Override
+	public Shape chooseEdgeShape(Shape oldShape, StyleGroup group) {
+		switch(group.getShape()) {
+			case LINE:
+				if(oldShape instanceof LineShape)	
+					return oldShape ;
+				else 								
+					return new LineShape();
+			case ANGLE:
+				if(oldShape instanceof AngleShape)	
+					return oldShape ;
+				else 								
+					return new AngleShape();
+			case BLOB:
+				if(oldShape instanceof BlobShape)	
+					return oldShape ;
+				else 								
+					return new BlobShape();
+			case CUBIC_CURVE:
+				if(oldShape instanceof CubicCurveShape)	
+					return oldShape ;
+				else 								
+					return new CubicCurveShape();
+			case FREEPLANE:
+				if(oldShape instanceof FreePlaneEdgeShape)	
+					return oldShape ;
+				else 								
+					return new FreePlaneEdgeShape();
+			case POLYLINE:
+				if(oldShape instanceof PolylineEdgeShape)	
+					return oldShape ;
+				else 								
+					return new PolylineEdgeShape();
+			case SQUARELINE:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY square-line shape not yet implemented **");
+				return new HorizontalSquareEdgeShape() ;
+			case LSQUARELINE:
+				if(oldShape instanceof LSquareEdgeShape)	
+					return oldShape ;
+				else 								
+					return new LSquareEdgeShape();
+			case HSQUARELINE:
+				if(oldShape instanceof HorizontalSquareEdgeShape)	
+					return oldShape ;
+				else 								
+					return new HorizontalSquareEdgeShape();
+			case VSQUARELINE:
+				Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY square-line shape not yet implemented **");
+				return new HorizontalSquareEdgeShape() ;
+			default:
+				throw new RuntimeException(group.getShape()+" shape cannot be set for edges");
+		}
+	}
+
+	@Override
+	public Shape chooseEdgeArrowShape(Shape oldShape, StyleGroup group) {
+		switch (group.getArrowShape()) {
+			case NONE:
+				return null ;
+			case ARROW:
+				if(oldShape instanceof ArrowOnEdge)	
+					return oldShape ;
+				else 								
+					return new ArrowOnEdge();
+			case CIRCLE:
+				if(oldShape instanceof CircleOnEdge)	
+					return oldShape ;
+				else 								
+					return new CircleOnEdge();
+			case DIAMOND:
+				if(oldShape instanceof DiamondOnEdge)	
+					return oldShape ;
+				else 								
+					return new DiamondOnEdge();
+			case IMAGE:
+				if(oldShape instanceof ImageOnEdge)	
+					return oldShape ;
+				else 								
+					return new ImageOnEdge();
+			default:
+				throw new RuntimeException(group.getArrowShape().toString()+" shape cannot be set for edge arrows");
+		}
+	}
+
+	@Override
+	public Shape chooseSpriteShape(Shape oldShape, StyleGroup group) {
+		switch (group.getShape()) {
+		case CIRCLE:
+			if(oldShape instanceof CircleShape)	
+				return oldShape ;
+			else 								
+				return new CircleShape();
+		case BOX:
+			if(oldShape instanceof OrientableSquareShape)
+				return oldShape ;
+			else
+				return new OrientableSquareShape();
+		case ROUNDED_BOX:
+			if(oldShape instanceof RoundedSquareShape)	
+				return oldShape ;
+			else
+				return new RoundedSquareShape();
+		case DIAMOND:
+			if(oldShape instanceof DiamondShape)	
+				return oldShape ;
+			else
+				return new DiamondShape();
+		case TRIANGLE:
+			if(oldShape instanceof TriangleShape)
+				return oldShape ;
+			else
+				return new TriangleShape();
+		case CROSS:
+			if(oldShape instanceof CrossShape)
+				return oldShape ;
+			else
+				return new CrossShape();
+		case ARROW:
+			if(oldShape instanceof SpriteArrowShape)
+				return oldShape ;
+			else
+				return new SpriteArrowShape();
+		case FLOW:
+			if(oldShape instanceof SpriteFlowShape)	
+				return oldShape ;
+			else
+				return new SpriteFlowShape();
+		case PIE_CHART:
+			if(oldShape instanceof PieChartShape)
+				return oldShape ;
+			else
+				return new PieChartShape();
+		case POLYGON:
+			if(oldShape instanceof PolygonShape)	
+				return oldShape ;
+			else
+				return new PolygonShape();
+		//------
+		case TEXT_BOX:
+			Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-box shape not yet implemented **");  
+			return new SquareShape();
+		case TEXT_PARAGRAPH:
+			Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-para shape not yet implemented **");  
+			return new SquareShape();
+		case TEXT_CIRCLE:
+			Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-circle shape not yet implemented **");  
+			return new CircleShape();
+		case TEXT_DIAMOND:
+			Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY text-diamond shape not yet implemented **");  
+			return new CircleShape();
+		case IMAGES:
+			Logger.getLogger(this.getClass().getSimpleName()).warning("** SORRY images shape not yet implemented **");  
+			return new SquareShape();
+		//----
+		case JCOMPONENT:
+			throw new RuntimeException("Jcomponent should have its own renderer");
+		default:
+			throw new RuntimeException(group.getShape().toString()+" shape cannot be set for nodes");
+	}
+	}
+
+	@Override
+	public GraphBackgroundRenderer chooseGraphBackgroundRenderer() {
+		return null ;
+	}
+
+	@Override
+	public Container drawingSurface() {
+		return surface ;
+	}
+
+}
